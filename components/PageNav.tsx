@@ -29,19 +29,19 @@ export function PageNav() {
         <span className="text-xs font-medium text-muted-foreground mr-1 sr-only sm:not-sr-only">
           ジャンプ:
         </span>
-        {SECTIONS.map(({ id, label, icon: Icon, highlight }) => (
+        {SECTIONS.map((section) => (
           <button
-            key={id}
+            key={section.id}
             type="button"
-            onClick={() => scrollToId(id)}
+            onClick={() => scrollToId(section.id)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              highlight
+              "highlight" in section && section.highlight
                 ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
           >
-            <Icon className="h-3.5 w-3.5 shrink-0" />
-            {label}
+            <section.icon className="h-3.5 w-3.5 shrink-0" />
+            {section.label}
           </button>
         ))}
       </div>

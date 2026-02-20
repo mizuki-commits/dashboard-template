@@ -352,7 +352,7 @@ export function ChecklistSection({
     const item = category?.items.find((i) => i.id === itemId);
     const newSub: ChecklistSubItem = {
       id: generateId(),
-      label: newSubItemLabel.trim() || "新しいサブタスク",
+      label: newItemLabel.trim() || "新しいサブタスク",
       completed: false,
       deadline: deadline || targetDate.toISOString().slice(0, 10),
       startDate: today.toISOString().slice(0, 10),
@@ -397,7 +397,7 @@ export function ChecklistSection({
       ),
     }));
     setExpandedItems((prev) => new Set(prev).add(itemId));
-    setNewSubItemLabel("");
+    setNewItemLabel("");
   };
 
   const updateSubItemLabel = (categoryId: string, itemId: string, subId: string, label: string) => {
