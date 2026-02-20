@@ -8,32 +8,34 @@ import { createTask, hasToken } from "@/lib/todoist";
  * チェックリストのカテゴリやアイテム作成時に、Todoistにタスクを作成する。
  */
 export async function POST(request: NextRequest) {
+  const body = (await request.json()) as {
+    content: string;
+    projectId?: string;
+    description?: string;
+    dueString?: string;
+    priority?: number;
+    assigneeId?: string;
+    userToken?: string;
+  };
+
+  // 認証: ログイン済み、またはリクエストに userToken が含まれる（ログイン解除時用）
   const session = await getServerSession(authOptions);
-  if (!session?.user) {
+  const hasAuth = !!session?.user || !!(body.userToken?.trim());
+  if (!hasAuth) {
     return NextResponse.json(
-      { error: "認証が必要です" },
+      { error: "認証が必要です。ログインするか、設定でTodoistトークンを保存してください。" },
       { status: 401 }
     );
   }
 
-  if (!hasToken()) {
+  if (!body.userToken?.trim() && !hasToken()) {
     return NextResponse.json(
-      { error: "TODOIST_API_TOKEN が設定されていません。" },
+      { error: "TODOIST_API_TOKEN が設定されていません。設定でTodoistトークンを保存するか、サーバーに環境変数を設定してください。" },
       { status: 401 }
     );
   }
 
   try {
-    const body = (await request.json()) as {
-      content: string;
-      projectId?: string;
-      description?: string;
-      dueString?: string;
-      priority?: number;
-      assigneeId?: string;
-      userToken?: string; // クライアント側から送信されるユーザートークン
-    };
-
     if (!body.content) {
       return NextResponse.json(
         { error: "content は必須です。" },
@@ -48,7 +50,7 @@ export async function POST(request: NextRequest) {
       dueString: body.dueString,
       priority: body.priority,
       assigneeId: body.assigneeId,
-      userToken: body.userToken,
+      userToken: body.userToken?.trim() || undefined,
     });
 
     return NextResponse.json({ taskId });

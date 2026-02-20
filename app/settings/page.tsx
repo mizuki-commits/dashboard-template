@@ -207,7 +207,7 @@ export default function SettingsPage() {
 
             {!loadingProjects && projects.length === 0 && (
               <p className="text-xs text-muted-foreground mt-2">
-                .env.local に TODOIST_API_TOKEN を設定し、サーバーを再起動してください。
+                下の「Todoist API トークン設定」にトークンを入力して<strong>保存</strong>をクリックし、上の<strong>更新</strong>でプロジェクトを再取得してください。ローカル開発の場合は .env.local に TODOIST_API_TOKEN を設定してサーバーを再起動してください。
               </p>
             )}
           </section>

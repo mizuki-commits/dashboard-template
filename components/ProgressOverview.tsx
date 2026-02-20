@@ -52,6 +52,7 @@ export function ProgressOverview({ checklist, onChecklistUpdate }: ProgressOverv
       alert("設定ページでデフォルトプロジェクトを選択してください。");
       return;
     }
+    const userToken = typeof window !== "undefined" ? localStorage.getItem("todoist_user_token") : null;
 
     setSyncing(true);
     try {
@@ -71,7 +72,7 @@ export function ProgressOverview({ checklist, onChecklistUpdate }: ProgressOverv
         const res = await fetch("/api/todoist/sync-status", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ projectId: defaultProjectId }),
+          body: JSON.stringify({ projectId: defaultProjectId, userToken: userToken || undefined }),
         });
         if (!res.ok) {
           throw new Error("同期に失敗しました");
@@ -104,7 +105,7 @@ export function ProgressOverview({ checklist, onChecklistUpdate }: ProgressOverv
         const res = await fetch("/api/todoist/sync-status", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ taskIds: todoistIds }),
+          body: JSON.stringify({ taskIds: todoistIds, userToken: userToken || undefined }),
         });
         if (!res.ok) {
           throw new Error("同期に失敗しました");

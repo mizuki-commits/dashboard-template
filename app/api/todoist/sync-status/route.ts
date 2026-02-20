@@ -1,27 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getTasksByProject, hasToken, getTask } from "@/lib/todoist";
+import { getTasksByProject, getTask } from "@/lib/todoist";
 
 /**
  * POST /api/todoist/sync-status
  * Todoistのタスク完了状態を取得し、管理ツール側の進捗を更新するための情報を返す。
  */
 export async function POST(request: NextRequest) {
-  if (!hasToken()) {
+  const body = (await request.json()) as {
+    projectId?: string;
+    taskIds?: string[];
+    userToken?: string;
+  };
+
+  const token = body.userToken?.trim() || process.env.TODOIST_API_TOKEN?.trim();
+  if (!token) {
     return NextResponse.json(
-      { error: "TODOIST_API_TOKEN が設定されていません。" },
+      { error: "TODOIST_API_TOKEN が設定されていません。リクエストに userToken を含めるか、サーバーの環境変数を設定してください。" },
       { status: 401 }
     );
   }
 
   try {
-    const body = (await request.json()) as {
-      projectId?: string;
-      taskIds?: string[];
-    };
-
     // projectId が指定されている場合は、そのプロジェクトの全タスクを取得
     if (body.projectId) {
-      const tasks = await getTasksByProject(body.projectId);
+      const tasks = await getTasksByProject(body.projectId, body.userToken?.trim());
       return NextResponse.json({
         tasks: tasks.map((t) => ({
           id: t.id,
@@ -32,8 +34,9 @@ export async function POST(request: NextRequest) {
 
     // taskIds が指定されている場合は、個別にタスクを取得
     if (body.taskIds && body.taskIds.length > 0) {
+      const userToken = body.userToken?.trim();
       const results = await Promise.allSettled(
-        body.taskIds.map((id) => getTask(id))
+        body.taskIds.map((id) => getTask(id, userToken))
       );
       const tasks = results
         .filter((r) => r.status === "fulfilled")

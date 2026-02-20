@@ -85,12 +85,12 @@ export async function getProjects(userToken?: string): Promise<TodoistProject[]>
 /**
  * 指定プロジェクトのタスクのみを取得する（GET /rest/v2/tasks?project_id=...）。
  */
-export async function getTasksByProject(projectId: string): Promise<TodoistTask[]> {
+export async function getTasksByProject(projectId: string, userToken?: string): Promise<TodoistTask[]> {
   const url = new URL(`${REST_API}/tasks`);
   url.searchParams.set("project_id", projectId);
   const res = await fetch(url.toString(), {
     method: "GET",
-    headers: getHeaders(),
+    headers: getHeaders(userToken),
   });
   if (!res.ok) {
     const text = await res.text();
@@ -191,10 +191,10 @@ export async function closeTask(taskId: string): Promise<void> {
 /**
  * Todoist のタスクを取得する（GET /rest/v2/tasks/:id）。
  */
-export async function getTask(taskId: string): Promise<TodoistTask> {
+export async function getTask(taskId: string, userToken?: string): Promise<TodoistTask> {
   const res = await fetch(`${REST_API}/tasks/${encodeURIComponent(taskId)}`, {
     method: "GET",
-    headers: getHeaders(),
+    headers: getHeaders(userToken),
   });
   if (!res.ok) {
     const text = await res.text();
