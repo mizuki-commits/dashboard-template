@@ -4,7 +4,8 @@ import { authOptions } from "@/lib/auth";
 
 /**
  * GET /api/todoist/user-token
- * 現在のユーザーのTodoist APIトークンを取得（マスク済み）
+ * 現在のユーザーのTodoist APIトークンを取得（マスク済み）。
+ * ログイン無効時は未使用。トークンは設定画面で localStorage に保存される。
  */
 export async function GET() {
   const session = await getServerSession(authOptions);

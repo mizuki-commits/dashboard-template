@@ -7,20 +7,11 @@ export const dynamic = "force-dynamic";
 /**
  * 指定プロジェクトのタスクを Todoist から取得して返す。
  * フロントで既存タスク（todoistId 一致）は更新、なければ新規として Kanban にマージする。
- * Body: { projectId: string }
+ * Body: { projectId: string, userToken?: string }
  * Response: { tasks: Array<{ id, content, description, due }> }
  */
 export async function POST(request: NextRequest) {
-  if (!hasToken()) {
-    return NextResponse.json(
-      {
-        error: "TODOIST_API_TOKEN が設定されていません。.env.local に追加し、サーバーを再起動してください。",
-      },
-      { status: 503 }
-    );
-  }
-
-  let body: { projectId?: string };
+  let body: { projectId?: string; userToken?: string };
   try {
     body = await request.json();
   } catch {
@@ -35,8 +26,18 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const userToken = typeof body.userToken === "string" ? body.userToken.trim() : undefined;
+  if (!userToken && !hasToken()) {
+    return NextResponse.json(
+      {
+        error: "TODOIST_API_TOKEN が設定されていません。設定でTodoistトークンを保存するか、サーバーに環境変数を設定してください。",
+      },
+      { status: 503 }
+    );
+  }
+
   try {
-    const tasks = await getTasksByProject(projectId);
+    const tasks = await getTasksByProject(projectId, userToken);
     const normalized = tasks
       .filter((t) => !t.is_completed)
       .map((t) => ({

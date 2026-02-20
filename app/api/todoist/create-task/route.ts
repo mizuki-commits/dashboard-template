@@ -8,8 +8,8 @@ import { createTask, hasToken } from "@/lib/todoist";
  * チェックリストのカテゴリやアイテム作成時に、Todoistにタスクを作成する。
  */
 export async function POST(request: NextRequest) {
-  const body = (await request.json()) as {
-    content: string;
+  let body: {
+    content?: string;
     projectId?: string;
     description?: string;
     dueString?: string;
@@ -17,6 +17,11 @@ export async function POST(request: NextRequest) {
     assigneeId?: string;
     userToken?: string;
   };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "リクエストボディが不正です。" }, { status: 400 });
+  }
 
   // 認証: ログイン済み、またはリクエストに userToken が含まれる（ログイン解除時用）
   const session = await getServerSession(authOptions);

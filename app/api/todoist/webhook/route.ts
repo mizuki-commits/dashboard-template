@@ -129,6 +129,14 @@ async function handleTaskDeleted(taskId: string): Promise<void> {
 }
 
 export async function POST(request: NextRequest) {
+  const secret = process.env.TODOIST_WEBHOOK_SECRET?.trim();
+  if (!secret) {
+    return NextResponse.json(
+      { error: "TODOIST_WEBHOOK_SECRET が設定されていません。Vercelの環境変数で設定してください。" },
+      { status: 503 }
+    );
+  }
+
   try {
     // リクエストボディを取得（署名検証のため文字列として保持）
     const bodyText = await request.text();
@@ -154,12 +162,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("[Webhook] エラー:", error);
     const message = error instanceof Error ? error.message : "Webhook処理に失敗しました";
-    
-    // エラーでも200を返す（Todoist側に再送を防ぐため）
-    // ただし、ログには記録
     return NextResponse.json(
       { error: message },
-      { status: 200 }
+      { status: 500 }
     );
   }
 }

@@ -21,7 +21,9 @@ import {
   Trash2,
   X,
   ListTodo,
+  Download,
 } from "lucide-react";
+import { toTodoistCsv, downloadTodoistCsv, checklistToTodoistRows } from "@/lib/todoist-csv";
 import { useKanban, type KanbanLinkedEntity } from "@/contexts/KanbanContext";
 
 export type CategoryIconId =
@@ -575,6 +577,12 @@ export function ChecklistSection({
   );
   const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
+  const handleExportTodoistCsv = () => {
+    const rows = checklistToTodoistRows(checklist);
+    const csv = toTodoistCsv(rows);
+    downloadTodoistCsv(csv, "todoist_import.csv");
+  };
+
   return (
     <section>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
@@ -588,6 +596,14 @@ export function ChecklistSection({
             </span>
             <span className="text-sm text-muted-foreground">完了</span>
           </div>
+          <button
+            type="button"
+            onClick={handleExportTodoistCsv}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-background text-foreground text-sm hover:bg-muted transition-colors"
+          >
+            <Download className="h-4 w-4" />
+            Todoist用CSVを書き出し
+          </button>
           {selectedForKanban.size > 0 && (
             <button
               type="button"

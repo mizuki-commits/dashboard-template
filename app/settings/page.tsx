@@ -77,10 +77,11 @@ export default function SettingsPage() {
     setSyncResult(null);
     setSyncing(true);
     try {
+      const userToken = typeof window !== "undefined" ? localStorage.getItem("todoist_user_token") : null;
       const res = await fetch("/api/todoist/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId: selectedProjectId }),
+        body: JSON.stringify({ projectId: selectedProjectId, userToken: userToken || undefined }),
       });
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;

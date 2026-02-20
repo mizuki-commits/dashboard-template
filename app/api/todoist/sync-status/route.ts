@@ -6,11 +6,12 @@ import { getTasksByProject, getTask } from "@/lib/todoist";
  * Todoistのタスク完了状態を取得し、管理ツール側の進捗を更新するための情報を返す。
  */
 export async function POST(request: NextRequest) {
-  const body = (await request.json()) as {
-    projectId?: string;
-    taskIds?: string[];
-    userToken?: string;
-  };
+  let body: { projectId?: string; taskIds?: string[]; userToken?: string };
+  try {
+    body = (await request.json()) as typeof body;
+  } catch {
+    return NextResponse.json({ error: "リクエストボディが不正です。" }, { status: 400 });
+  }
 
   const token = body.userToken?.trim() || process.env.TODOIST_API_TOKEN?.trim();
   if (!token) {
