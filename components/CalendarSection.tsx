@@ -76,6 +76,26 @@ function extractEvents(checklist: ChecklistCategory[]): CalendarEvent[] {
   return events.filter((e) => e.date);
 }
 
+/** プロジェクト未設定のグループ名 */
+const UNASSIGNED_PROJECT_NAME = "プロジェクト未設定";
+
+/**
+ * イベントをプロジェクト（categoryTitle）単位でグループ化し、
+ * 各グループ内は日付昇順でソートする。
+ */
+function groupEventsByProject(events: CalendarEvent[]): { projectName: string; events: CalendarEvent[] }[] {
+  const byProject = new Map<string, CalendarEvent[]>();
+  for (const e of events) {
+    const key = (e.categoryTitle || "").trim() || UNASSIGNED_PROJECT_NAME;
+    if (!byProject.has(key)) byProject.set(key, []);
+    byProject.get(key)!.push(e);
+  }
+  return Array.from(byProject.entries()).map(([projectName, list]) => ({
+    projectName,
+    events: [...list].sort((a, b) => a.date.localeCompare(b.date)),
+  }));
+}
+
 function getMonthDays(year: number, month: number): (Date | null)[][] {
   const first = new Date(year, month, 1);
   const last = new Date(year, month + 1, 0);
@@ -118,6 +138,7 @@ export function CalendarSection({ checklist }: { checklist: ChecklistCategory[] 
     return acc;
   }, {});
 
+  const eventsByProject = groupEventsByProject(events);
   const weeks = getMonthDays(viewYear, viewMonth);
 
   const prevMonth = () => {
@@ -308,6 +329,65 @@ export function CalendarSection({ checklist }: { checklist: ChecklistCategory[] 
             </div>
           </div>
         )}
+
+        {/* プロジェクト単位でのグループ化表示 */}
+        <div className="mt-6 pt-4 border-t border-border">
+          <h4 className="text-sm font-semibold text-foreground mb-4">
+            プロジェクト別スケジュール
+          </h4>
+          {eventsByProject.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">スケジュールはありません</p>
+          ) : (
+            <div className="space-y-6">
+              {eventsByProject.map(({ projectName, events: projectEvents }) => (
+                <div
+                  key={projectName}
+                  className="rounded-xl border border-border bg-gray-50 dark:bg-muted/20 overflow-hidden"
+                >
+                  <div className="px-4 py-3 border-b border-border bg-muted/30">
+                    <h5 className="font-semibold text-foreground text-base">
+                      {projectName}
+                    </h5>
+                  </div>
+                  <ul className="divide-y divide-border/60">
+                    {projectEvents.map((ev) => (
+                      <li
+                        key={ev.id}
+                        className={`px-4 py-2.5 flex items-center gap-3 text-sm ${
+                          ev.completed ? "opacity-70" : ""
+                        }`}
+                      >
+                        <span className="shrink-0 w-24 text-muted-foreground tabular-nums">
+                          {ev.date}
+                        </span>
+                        {ev.type === "start" ? (
+                          <Play className="h-4 w-4 text-blue-600 shrink-0" />
+                        ) : (
+                          <Flag className="h-4 w-4 text-amber-600 shrink-0" />
+                        )}
+                        <span
+                          className={
+                            ev.completed
+                              ? "text-muted-foreground line-through flex-1 min-w-0"
+                              : "text-foreground flex-1 min-w-0"
+                          }
+                        >
+                          {ev.label}
+                          {ev.isSubItem && (
+                            <span className="text-xs text-muted-foreground ml-1">(サブ)</span>
+                          )}
+                        </span>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {ev.type === "start" ? "着手" : "締切"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </section>
   );
