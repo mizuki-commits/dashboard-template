@@ -1,12 +1,11 @@
-import { withAuth } from "next-auth/middleware";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export default withAuth({
-  pages: {
-    signIn: "/login",
-  },
-});
+// ログイン必須を解除：全パスを通す（認証チェックなし）
+export function middleware(_request: NextRequest) {
+  return NextResponse.next();
+}
 
 export const config = {
-  // 認証を要求するパス（/api, /login は除外）
-  matcher: ["/((?!api|login|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
 };
