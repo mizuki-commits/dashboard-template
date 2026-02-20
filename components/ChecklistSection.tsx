@@ -24,6 +24,12 @@ import {
   Download,
 } from "lucide-react";
 import { toTodoistCsv, downloadTodoistCsv, checklistToTodoistRows } from "@/lib/todoist-csv";
+import {
+  getRemindSuggestion,
+  addDaysToDate,
+  REMIND_DAYS_OPTIONS,
+  type RemindSuggestion,
+} from "@/lib/remind-config";
 import { useKanban, type KanbanLinkedEntity } from "@/contexts/KanbanContext";
 
 export type CategoryIconId =
@@ -58,6 +64,8 @@ export interface ChecklistSubItem {
   assignee?: SubTaskAssignee;
   /** Todoist 連携用。作成時に Todoist のタスク ID を保持する */
   todoistId?: string;
+  /** リマインド用に自動追加されたサブタスクか */
+  isRemind?: boolean;
 }
 
 export interface ChecklistItem {
@@ -197,6 +205,14 @@ export function ChecklistSection({
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [addingItemTo, setAddingItemTo] = useState<string | null>(null);
   const [newItemLabel, setNewItemLabel] = useState("");
+  const [showRemindDialog, setShowRemindDialog] = useState(false);
+  const [pendingRemind, setPendingRemind] = useState<{
+    categoryId: string;
+    label: string;
+    remindLabel: string;
+    daysAfter: number;
+    addRemind: boolean;
+  } | null>(null);
 
   const entityLabelToKanbanType = (): KanbanLinkedEntity["type"] | undefined => {
     if (entityLabel === "学校") return "school";
@@ -492,25 +508,42 @@ export function ChecklistSection({
     setShowAddCategory(false);
   };
 
-  const addItem = async (categoryId: string) => {
-    const label = newItemLabel.trim() || (entityLabel === "施策" ? "新しい施策" : "新しいタスク");
+  /** リマインドオプション付きでタスクを追加する（内部実装）。 */
+  const performAddItem = async (
+    categoryId: string,
+    label: string,
+    remindOption: { remindLabel: string; daysAfter: number } | null
+  ) => {
     const today = new Date().toISOString().slice(0, 10);
     const category = checklist.find((c) => c.id === categoryId);
+    const mainDeadline = deadline;
+
+    const remindSub: ChecklistSubItem | null =
+      remindOption
+        ? {
+            id: generateId(),
+            label: remindOption.remindLabel,
+            completed: false,
+            deadline: addDaysToDate(mainDeadline || today, remindOption.daysAfter),
+            startDate: today,
+            isRemind: true,
+          }
+        : null;
+
     const newItem: ChecklistItem = {
       id: generateId(),
       label,
       completed: false,
-      deadline: deadline,
+      deadline: mainDeadline,
       startDate: today,
-      subItems: [],
+      subItems: remindSub ? [remindSub] : [],
     };
 
-    // Todoist連携: デフォルトプロジェクトが設定されている場合、タスクを作成
     const defaultProjectId = typeof window !== "undefined" ? localStorage.getItem("todoist_default_project_id") : null;
     const userToken = typeof window !== "undefined" ? localStorage.getItem("todoist_user_token") : null;
     if (defaultProjectId) {
       try {
-        const dueString = deadline ? new Date(deadline).toISOString().slice(0, 10) : undefined;
+        const dueString = mainDeadline ? new Date(mainDeadline).toISOString().slice(0, 10) : undefined;
         const res = await fetch("/api/todoist/create-task", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -524,26 +557,95 @@ export function ChecklistSection({
         });
         if (res.ok) {
           const data = (await res.json()) as { taskId?: string };
-          if (data.taskId) {
-            newItem.todoistId = data.taskId;
-          }
+          if (data.taskId) newItem.todoistId = data.taskId;
         }
       } catch (e) {
         console.error("Todoistタスク作成エラー:", e);
-        // エラーが発生してもチェックリストの作成は続行
+      }
+      if (remindSub) {
+        try {
+          const dueString = remindSub.deadline ? new Date(remindSub.deadline).toISOString().slice(0, 10) : undefined;
+          const res = await fetch("/api/todoist/create-task", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              content: remindSub.label,
+              projectId: defaultProjectId,
+              description: category ? `${category.title} - ${label} - ${remindSub.label}` : remindSub.label,
+              dueString: dueString,
+              userToken: userToken || undefined,
+            }),
+          });
+          if (res.ok) {
+            const data = (await res.json()) as { taskId?: string };
+            if (data.taskId) remindSub.todoistId = data.taskId;
+          }
+        } catch (e) {
+          console.error("Todoistタスク作成エラー:", e);
+        }
       }
     }
 
     onUpdate(
       checklist.map((cat) =>
-        cat.id === categoryId
-          ? { ...cat, items: [...cat.items, newItem] }
-          : cat
+        cat.id === categoryId ? { ...cat, items: [...cat.items, newItem] } : cat
       )
     );
+
+    // Vercel Postgres の tasks テーブルに保存（非同期・失敗時もUIはそのまま）
+    const tasksPayload = [
+      {
+        content: label,
+        description: category ? `${category.title} - ${label}` : undefined,
+        priority: 1,
+        indent: 1,
+        date: mainDeadline || undefined,
+        is_remind: false,
+      },
+      ...(remindSub
+        ? [
+            {
+              content: remindSub.label,
+              description: category ? `${category.title} - ${label} - ${remindSub.label}` : undefined,
+              priority: 1,
+              indent: 2,
+              date: remindSub.deadline || undefined,
+              is_remind: true,
+            },
+          ]
+        : []),
+    ];
+    fetch("/api/tasks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tasks: tasksPayload }),
+    }).catch((err) => console.warn("tasks API 保存スキップ:", err));
+
     setNewItemLabel("");
     setAddingItemTo(null);
+    setShowRemindDialog(false);
+    setPendingRemind(null);
   };
+
+  /** タスク追加を試行。リマインド提案があればダイアログを表示し、なければそのまま追加。 */
+  const tryAddItem = (categoryId: string) => {
+    const label = newItemLabel.trim() || (entityLabel === "施策" ? "新しい施策" : "新しいタスク");
+    const suggestion = getRemindSuggestion(label);
+    if (suggestion) {
+      setPendingRemind({
+        categoryId,
+        label,
+        remindLabel: suggestion.remindLabel,
+        daysAfter: suggestion.daysAfter,
+        addRemind: true,
+      });
+      setShowRemindDialog(true);
+      return;
+    }
+    performAddItem(categoryId, label, null);
+  };
+
+  const addItem = tryAddItem;
 
   const removeItem = (categoryId: string, itemId: string) => {
     onUpdate(
@@ -583,8 +685,92 @@ export function ChecklistSection({
     downloadTodoistCsv(csv, "todoist_import.csv");
   };
 
+  const confirmRemindAndAdd = () => {
+    if (!pendingRemind) return;
+    performAddItem(
+      pendingRemind.categoryId,
+      pendingRemind.label,
+      pendingRemind.addRemind
+        ? { remindLabel: pendingRemind.remindLabel, daysAfter: pendingRemind.daysAfter }
+        : null
+    );
+  };
+
   return (
     <section>
+      {/* リマインド確認ダイアログ */}
+      {showRemindDialog && pendingRemind && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" role="dialog" aria-modal="true" aria-labelledby="remind-dialog-title">
+          <div className="bg-card border border-border rounded-xl shadow-lg max-w-md w-full mx-4 p-5 space-y-4">
+            <h3 id="remind-dialog-title" className="text-lg font-semibold text-foreground">
+              リマインドタスクの追加
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              タスク内容に「連絡」「送信」「提出」「依頼」が含まれているため、返信確認用のリマインドを追加できます。
+            </p>
+            <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+              <div className="text-sm font-medium text-foreground">メインタスク</div>
+              <div className="text-sm text-foreground">{pendingRemind.label}</div>
+              <div className="flex items-center gap-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="remind-check"
+                  checked={pendingRemind.addRemind}
+                  onChange={(e) =>
+                    setPendingRemind((p) => (p ? { ...p, addRemind: e.target.checked } : null))
+                  }
+                />
+                <label htmlFor="remind-check" className="text-sm text-foreground">
+                  リマインドを追加する
+                </label>
+              </div>
+              {pendingRemind.addRemind && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm text-muted-foreground">リマインド:</span>
+                  <span className="text-sm text-foreground truncate">{pendingRemind.remindLabel}</span>
+                  <span className="text-sm text-muted-foreground">（</span>
+                  <select
+                    value={pendingRemind.daysAfter}
+                    onChange={(e) =>
+                      setPendingRemind((p) =>
+                        p ? { ...p, daysAfter: Number(e.target.value) } : null
+                      )
+                    }
+                    className="text-sm border border-input rounded px-2 py-1 bg-background"
+                  >
+                    {REMIND_DAYS_OPTIONS.map((d) => (
+                      <option key={d} value={d}>
+                        {d}日後
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-sm text-muted-foreground">）</span>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowRemindDialog(false);
+                  setPendingRemind(null);
+                }}
+                className="px-3 py-1.5 rounded-lg border border-border text-foreground hover:bg-muted text-sm"
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                onClick={confirmRemindAndAdd}
+                className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-sm"
+              >
+                追加する
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
           {labels.sectionTitle}
