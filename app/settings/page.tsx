@@ -31,6 +31,9 @@ export default function SettingsPage() {
   const [userToken, setUserToken] = useState("");
   const [showToken, setShowToken] = useState(false);
   const [savingToken, setSavingToken] = useState(false);
+  // CSV書き出し時の担当者 Todoist User ID
+  const [userIdMizuki, setUserIdMizuki] = useState("");
+  const [userIdNishikata, setUserIdNishikata] = useState("");
 
   const fetchProjects = useCallback(async () => {
     setError(null);
@@ -61,11 +64,11 @@ export default function SettingsPage() {
 
   useEffect(() => {
     void fetchProjects();
-    // ローカルストレージからユーザートークンを読み込み
-    const storedToken = typeof window !== "undefined" ? localStorage.getItem("todoist_user_token") : null;
-    if (storedToken) {
-      setUserToken(storedToken);
-    }
+    if (typeof window === "undefined") return;
+    const storedToken = localStorage.getItem("todoist_user_token");
+    if (storedToken) setUserToken(storedToken);
+    setUserIdMizuki(localStorage.getItem("todoist_user_id_mizuki") || "");
+    setUserIdNishikata(localStorage.getItem("todoist_user_id_nishikata") || "");
   }, []);
 
   const handleSync = async () => {
@@ -249,6 +252,60 @@ export default function SettingsPage() {
             </div>
             <p className="text-xs text-muted-foreground mt-2">
               選択したプロジェクトに、チェックリストのカテゴリ（プロジェクト）やアイテム（Epic）が自動的にタスクとして作成されます。
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-medium text-foreground mb-2">
+              Todoist CSV 書き出し時の担当者（User ID）
+            </h2>
+            <p className="text-xs text-muted-foreground mb-4">
+              タスクボードからTodoist用CSVを書き出す際、担当者をTodoist上で紐づけるには各担当者のTodoist User IDを設定してください。IDは数字のみです（例: 12345678）。未設定の場合は名前のみ出力され、インポート時に担当が付かない場合があります。
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="todoist-user-id-mizuki" className="block text-xs font-medium text-muted-foreground mb-1">
+                  水城（Hidenobu M.）の User ID
+                </label>
+                <input
+                  id="todoist-user-id-mizuki"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="例: 12345678"
+                  value={userIdMizuki}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, "");
+                    setUserIdMizuki(v);
+                    if (v) localStorage.setItem("todoist_user_id_mizuki", v);
+                    else localStorage.removeItem("todoist_user_id_mizuki");
+                  }}
+                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div>
+                <label htmlFor="todoist-user-id-nishikata" className="block text-xs font-medium text-muted-foreground mb-1">
+                  西方（toshihiro nishikata）の User ID
+                </label>
+                <input
+                  id="todoist-user-id-nishikata"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="例: 87654321"
+                  value={userIdNishikata}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, "");
+                    setUserIdNishikata(v);
+                    if (v) localStorage.setItem("todoist_user_id_nishikata", v);
+                    else localStorage.removeItem("todoist_user_id_nishikata");
+                  }}
+                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              User IDの調べ方: TodoistでプロジェクトをエクスポートしたCSVのAUTHOR/RESPONSIBLE列に「名前 (数字)」形式で記載されています。
             </p>
           </section>
 

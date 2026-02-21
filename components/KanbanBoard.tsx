@@ -97,18 +97,27 @@ export function KanbanBoard({ entities = [] }: KanbanBoardProps) {
     done: "完了",
   };
 
-  /** 担当者（タスクボード） → Todoist 用担当者名（CSV の RESPONSIBLE に出力） */
-  const ASSIGNEE_TO_TODOIST_NAME: Record<KanbanAssignee, string> = {
+  /** 担当者（タスクボード） → Todoist 用表示名（RESPONSIBLE は「表示名 (user_id)」形式でないと担当が付かない） */
+  const ASSIGNEE_DISPLAY_NAME: Record<KanbanAssignee, string> = {
     MIZUKI: "Hidenobu M.",
     NISHIKATA: "toshihiro nishikata",
+  };
+
+  const getResponsibleForCsv = (assignee: KanbanAssignee | undefined): string => {
+    if (!assignee) return "";
+    const name = ASSIGNEE_DISPLAY_NAME[assignee];
+    if (typeof window === "undefined") return name;
+    const storageKey =
+      assignee === "MIZUKI" ? "todoist_user_id_mizuki" : "todoist_user_id_nishikata";
+    const id = localStorage.getItem(storageKey)?.trim();
+    return id ? `${name} (${id})` : name;
   };
 
   const handleExportTodoistCsv = () => {
     const rows = tasks.map((t) => {
       const label = COLUMN_TO_LABEL[t.column];
       const contentWithLabel = label ? `${t.title} @${label}` : t.title;
-      const responsible =
-        t.assignee ? ASSIGNEE_TO_TODOIST_NAME[t.assignee] : "";
+      const responsible = getResponsibleForCsv(t.assignee);
       return {
         content: contentWithLabel,
         description: t.description || (t.linkedEntity ? `${t.linkedEntity.name}` : undefined),
