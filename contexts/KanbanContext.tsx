@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 
 export type KanbanAssignee = "MIZUKI" | "NISHIKATA";
 
@@ -34,8 +34,30 @@ interface KanbanContextType {
 
 const KanbanContext = createContext<KanbanContextType | null>(null);
 
+const STORAGE_KEY = "kanban_tasks";
+
+function loadTasksFromStorage(): KanbanTask[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const s = localStorage.getItem(STORAGE_KEY);
+    if (!s) return [];
+    const parsed = JSON.parse(s) as KanbanTask[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 export function KanbanProvider({ children }: { children: React.ReactNode }) {
-  const [tasks, setTasks] = useState<KanbanTask[]>([]);
+  const [tasks, setTasks] = useState<KanbanTask[]>(() => loadTasksFromStorage());
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    } catch (e) {
+      console.warn("Kanban tasks save failed:", e);
+    }
+  }, [tasks]);
 
   const addTasks = useCallback(
     (newTasks: Omit<KanbanTask, "id" | "createdAt">[]) => {

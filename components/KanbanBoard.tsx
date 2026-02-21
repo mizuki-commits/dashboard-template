@@ -7,7 +7,8 @@ import {
   type KanbanLinkedEntity,
   type KanbanAssignee,
 } from "@/contexts/KanbanContext";
-import { Check, Circle, Loader2, Plus, X, Pencil, Trash2 } from "lucide-react";
+import { Check, Circle, Loader2, Plus, X, Pencil, Trash2, Download } from "lucide-react";
+import { toTodoistCsv, downloadTodoistCsv } from "@/lib/todoist-csv";
 
 const columnConfig = {
   todo: { label: "To Do", icon: Circle },
@@ -89,6 +90,30 @@ export function KanbanBoard({ entities = [] }: KanbanBoardProps) {
     [removeTask]
   );
 
+  /** タスクボードのステータス → Todoist ラベル（CONTENT に @ラベル名 で付与する） */
+  const COLUMN_TO_LABEL: Record<KanbanTask["column"], string> = {
+    todo: "準備中",
+    in_progress: "進行中",
+    done: "完了",
+  };
+
+  const handleExportTodoistCsv = () => {
+    const rows = tasks.map((t) => {
+      const label = COLUMN_TO_LABEL[t.column];
+      const contentWithLabel = label ? `${t.title} @${label}` : t.title;
+      return {
+        content: contentWithLabel,
+        description: t.description || (t.linkedEntity ? `${t.linkedEntity.name}` : undefined),
+        priority: 1,
+        indent: 1,
+        date: t.deadline ? t.deadline.slice(0, 10) : undefined,
+        responsible: t.assignee || "",
+      };
+    });
+    const csv = toTodoistCsv(rows);
+    downloadTodoistCsv(csv, "todoist_import.csv");
+  };
+
   return (
     <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
       <div className="border-b border-border bg-muted/30 px-4 py-3 flex items-center justify-between flex-wrap gap-2">
@@ -99,6 +124,14 @@ export function KanbanBoard({ entities = [] }: KanbanBoardProps) {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExportTodoistCsv}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-background text-foreground text-sm hover:bg-muted transition-colors"
+          >
+            <Download className="h-4 w-4" />
+            Todoist用CSVを書き出し
+          </button>
           {!showAddForm && (
             <button
               type="button"

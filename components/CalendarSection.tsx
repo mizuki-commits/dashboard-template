@@ -96,6 +96,46 @@ function groupEventsByProject(events: CalendarEvent[]): { projectName: string; e
   }));
 }
 
+/** 指定年のイベントのみに絞る（YYYY-MM-DD の先頭が year と一致） */
+function filterEventsByYear(events: CalendarEvent[], year: number): CalendarEvent[] {
+  const prefix = `${year}-`;
+  return events.filter((e) => e.date.startsWith(prefix));
+}
+
+/** 指定年・月のイベントのみに絞る */
+function filterEventsByMonth(events: CalendarEvent[], year: number, month: number): CalendarEvent[] {
+  const prefix = `${year}-${String(month + 1).padStart(2, "0")}-`;
+  return events.filter((e) => e.date.startsWith(prefix));
+}
+
+/** 指定週（月曜始まり）のイベントのみに絞る。weekStartMonday は YYYY-MM-DD */
+function filterEventsByWeek(events: CalendarEvent[], weekStartMonday: string): CalendarEvent[] {
+  const start = new Date(weekStartMonday);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  const endStr = end.toISOString().slice(0, 10);
+  return events.filter((e) => e.date >= weekStartMonday && e.date <= endStr);
+}
+
+/** 指定日が含まれる週の月曜日を YYYY-MM-DD で返す */
+function getMondayOfWeek(d: Date): string {
+  const day = d.getDay();
+  const diff = (day + 6) % 7;
+  const monday = new Date(d);
+  monday.setDate(monday.getDate() - diff);
+  return monday.toISOString().slice(0, 10);
+}
+
+/** 月曜日 YYYY-MM-DD から +6 日した日曜日を YYYY-MM-DD で返す */
+function getSundayOfWeek(mondayStr: string): string {
+  const d = new Date(mondayStr);
+  d.setDate(d.getDate() + 6);
+  return d.toISOString().slice(0, 10);
+}
+
+type ScheduleViewMode = "list" | "project";
+type ProjectRange = "year" | "month" | "week";
+
 function getMonthDays(year: number, month: number): (Date | null)[][] {
   const first = new Date(year, month, 1);
   const last = new Date(year, month + 1, 0);
@@ -127,8 +167,15 @@ const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
 export function CalendarSection({ checklist }: { checklist: ChecklistCategory[] }) {
   const today = new Date();
+  const [viewMode, setViewMode] = useState<ScheduleViewMode>("list");
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
+  const [projectViewYear, setProjectViewYear] = useState(today.getFullYear());
+  const [projectViewMonth, setProjectViewMonth] = useState(today.getMonth());
+  const [projectViewWeekStart, setProjectViewWeekStart] = useState(() =>
+    getMondayOfWeek(today)
+  );
+  const [projectRange, setProjectRange] = useState<ProjectRange>("year");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const events = extractEvents(checklist);
@@ -138,7 +185,13 @@ export function CalendarSection({ checklist }: { checklist: ChecklistCategory[] 
     return acc;
   }, {});
 
-  const eventsByProject = groupEventsByProject(events);
+  const eventsForProject =
+    projectRange === "year"
+      ? filterEventsByYear(events, projectViewYear)
+      : projectRange === "month"
+        ? filterEventsByMonth(events, projectViewYear, projectViewMonth)
+        : filterEventsByWeek(events, projectViewWeekStart);
+  const eventsByProject = groupEventsByProject(eventsForProject);
   const weeks = getMonthDays(viewYear, viewMonth);
 
   const prevMonth = () => {
@@ -168,33 +221,128 @@ export function CalendarSection({ checklist }: { checklist: ChecklistCategory[] 
 
   return (
     <section className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-      <div className="border-b border-border bg-muted/30 px-4 py-3 flex items-center justify-between">
-        <h3 className="font-semibold text-foreground flex items-center gap-2">
-          <CalendarIcon className="h-5 w-5 text-primary" />
-          スケジュール一覧
-        </h3>
+      <div className="border-b border-border bg-muted/30 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={prevMonth}
-            className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-          <span className="min-w-[140px] text-center font-medium">
-            {viewYear}年{viewMonth + 1}月
-          </span>
-          <button
-            type="button"
-            onClick={nextMonth}
-            className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </button>
+          <h3 className="font-semibold text-foreground flex items-center gap-2">
+            <CalendarIcon className="h-5 w-5 text-primary" />
+            スケジュール
+          </h3>
+          <div className="flex rounded-lg border border-border bg-background p-0.5">
+            <button
+              type="button"
+              onClick={() => setViewMode("list")}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                viewMode === "list"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              スケジュール一覧
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("project")}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                viewMode === "project"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              プロジェクト別
+            </button>
+          </div>
         </div>
+        {viewMode === "list" && (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={prevMonth}
+              className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <span className="min-w-[140px] text-center font-medium">
+              {viewYear}年{viewMonth + 1}月
+            </span>
+            <button
+              type="button"
+              onClick={nextMonth}
+              className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
+        )}
+        {viewMode === "project" && (
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex rounded-lg border border-border bg-background p-0.5">
+              {(["year", "month", "week"] as const).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setProjectRange(r)}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                    projectRange === r
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {r === "year" ? "年間" : r === "month" ? "月別" : "週単位"}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  if (projectRange === "year") setProjectViewYear((y) => y - 1);
+                  if (projectRange === "month") {
+                    setProjectViewMonth((m) => (m === 0 ? 11 : m - 1));
+                    setProjectViewYear((y) => (projectViewMonth === 0 ? y - 1 : y));
+                  }
+                  if (projectRange === "week") {
+                    const d = new Date(projectViewWeekStart);
+                    d.setDate(d.getDate() - 7);
+                    setProjectViewWeekStart(d.toISOString().slice(0, 10));
+                  }
+                }}
+                className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <span className="min-w-[140px] text-center text-sm font-medium">
+                {projectRange === "year" && `${projectViewYear}年`}
+                {projectRange === "month" &&
+                  `${projectViewYear}年${projectViewMonth + 1}月`}
+                {projectRange === "week" &&
+                  `${projectViewWeekStart} 〜 ${getSundayOfWeek(projectViewWeekStart)}`}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (projectRange === "year") setProjectViewYear((y) => y + 1);
+                  if (projectRange === "month") {
+                    setProjectViewMonth((m) => (m === 11 ? 0 : m + 1));
+                    setProjectViewYear((y) => (projectViewMonth === 11 ? y + 1 : y));
+                  }
+                  if (projectRange === "week") {
+                    const d = new Date(projectViewWeekStart);
+                    d.setDate(d.getDate() + 7);
+                    setProjectViewWeekStart(d.toISOString().slice(0, 10));
+                  }
+                }}
+                className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="p-4">
+        {viewMode === "list" && (
+          <>
         {/* 凡例 */}
         <div className="flex gap-4 mb-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
@@ -329,65 +477,80 @@ export function CalendarSection({ checklist }: { checklist: ChecklistCategory[] 
             </div>
           </div>
         )}
+          </>
+        )}
 
-        {/* プロジェクト単位でのグループ化表示 */}
-        <div className="mt-6 pt-4 border-t border-border">
-          <h4 className="text-sm font-semibold text-foreground mb-4">
-            プロジェクト別スケジュール
-          </h4>
-          {eventsByProject.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">スケジュールはありません</p>
-          ) : (
-            <div className="space-y-6">
-              {eventsByProject.map(({ projectName, events: projectEvents }) => (
-                <div
-                  key={projectName}
-                  className="rounded-xl border border-border bg-gray-50 dark:bg-muted/20 overflow-hidden"
-                >
-                  <div className="px-4 py-3 border-b border-border bg-muted/30">
-                    <h5 className="font-semibold text-foreground text-base">
-                      {projectName}
-                    </h5>
-                  </div>
-                  <ul className="divide-y divide-border/60">
-                    {projectEvents.map((ev) => (
-                      <li
-                        key={ev.id}
-                        className={`px-4 py-2.5 flex items-center gap-3 text-sm ${
-                          ev.completed ? "opacity-70" : ""
-                        }`}
-                      >
-                        <span className="shrink-0 w-24 text-muted-foreground tabular-nums">
-                          {ev.date}
-                        </span>
-                        {ev.type === "start" ? (
-                          <Play className="h-4 w-4 text-blue-600 shrink-0" />
-                        ) : (
-                          <Flag className="h-4 w-4 text-amber-600 shrink-0" />
-                        )}
-                        <span
-                          className={
-                            ev.completed
-                              ? "text-muted-foreground line-through flex-1 min-w-0"
-                              : "text-foreground flex-1 min-w-0"
-                          }
+        {/* プロジェクト別表示（年間・月別・週単位） */}
+        {viewMode === "project" && (
+          <div>
+            <p className="text-sm text-muted-foreground mb-4">
+              {projectRange === "year" && `${projectViewYear}年`}
+              {projectRange === "month" &&
+                `${projectViewYear}年${projectViewMonth + 1}月`}
+              {projectRange === "week" &&
+                `${projectViewWeekStart} 〜 ${getSundayOfWeek(projectViewWeekStart)}`}
+              のスケジュールをプロジェクト別に表示しています。
+            </p>
+            {eventsByProject.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8 text-center">
+                {projectRange === "year" && `${projectViewYear}年`}
+                {projectRange === "month" &&
+                  `${projectViewYear}年${projectViewMonth + 1}月`}
+                {projectRange === "week" && "この週"}
+                のスケジュールはありません
+              </p>
+            ) : (
+              <div className="space-y-6 max-h-[60vh] overflow-y-auto">
+                {eventsByProject.map(({ projectName, events: projectEvents }) => (
+                  <div
+                    key={projectName}
+                    className="rounded-xl border border-border bg-gray-50 dark:bg-muted/20 overflow-hidden"
+                  >
+                    <div className="px-4 py-3 border-b border-border bg-muted/30">
+                      <h5 className="font-semibold text-foreground text-base">
+                        {projectName}
+                      </h5>
+                    </div>
+                    <ul className="divide-y divide-border/60">
+                      {projectEvents.map((ev) => (
+                        <li
+                          key={ev.id}
+                          className={`px-4 py-2.5 flex items-center gap-3 text-sm ${
+                            ev.completed ? "opacity-70" : ""
+                          }`}
                         >
-                          {ev.label}
-                          {ev.isSubItem && (
-                            <span className="text-xs text-muted-foreground ml-1">(サブ)</span>
+                          <span className="shrink-0 w-24 text-muted-foreground tabular-nums">
+                            {ev.date}
+                          </span>
+                          {ev.type === "start" ? (
+                            <Play className="h-4 w-4 text-blue-600 shrink-0" />
+                          ) : (
+                            <Flag className="h-4 w-4 text-amber-600 shrink-0" />
                           )}
-                        </span>
-                        <span className="shrink-0 text-xs text-muted-foreground">
-                          {ev.type === "start" ? "着手" : "締切"}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                          <span
+                            className={
+                              ev.completed
+                                ? "text-muted-foreground line-through flex-1 min-w-0"
+                                : "text-foreground flex-1 min-w-0"
+                            }
+                          >
+                            {ev.label}
+                            {ev.isSubItem && (
+                              <span className="text-xs text-muted-foreground ml-1">(サブ)</span>
+                            )}
+                          </span>
+                          <span className="shrink-0 text-xs text-muted-foreground">
+                            {ev.type === "start" ? "着手" : "締切"}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </section>
   );

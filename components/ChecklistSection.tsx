@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Check,
   ChevronDown,
@@ -24,12 +24,7 @@ import {
   Download,
 } from "lucide-react";
 import { toTodoistCsv, downloadTodoistCsv, checklistToTodoistRows } from "@/lib/todoist-csv";
-import {
-  getRemindSuggestion,
-  addDaysToDate,
-  REMIND_DAYS_OPTIONS,
-  type RemindSuggestion,
-} from "@/lib/remind-config";
+import { getRemindSuggestion, addDaysToDate, REMIND_DAYS_OPTIONS } from "@/lib/remind-config";
 import { useKanban, type KanbanLinkedEntity } from "@/contexts/KanbanContext";
 
 export type CategoryIconId =
@@ -685,6 +680,18 @@ export function ChecklistSection({
     downloadTodoistCsv(csv, "todoist_import.csv");
   };
 
+  useEffect(() => {
+    if (!showRemindDialog) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowRemindDialog(false);
+        setPendingRemind(null);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [showRemindDialog]);
+
   const confirmRemindAndAdd = () => {
     if (!pendingRemind) return;
     performAddItem(
@@ -700,8 +707,20 @@ export function ChecklistSection({
     <section>
       {/* リマインド確認ダイアログ */}
       {showRemindDialog && pendingRemind && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" role="dialog" aria-modal="true" aria-labelledby="remind-dialog-title">
-          <div className="bg-card border border-border rounded-xl shadow-lg max-w-md w-full mx-4 p-5 space-y-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="remind-dialog-title"
+          onClick={() => {
+            setShowRemindDialog(false);
+            setPendingRemind(null);
+          }}
+        >
+          <div
+            className="bg-card border border-border rounded-xl shadow-lg max-w-md w-full mx-4 p-5 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 id="remind-dialog-title" className="text-lg font-semibold text-foreground">
               リマインドタスクの追加
             </h3>

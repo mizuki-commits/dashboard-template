@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     for (let i = 0; i < tasks.length; i++) {
       const t = tasks[i];
       const content = (t.content ?? "").trim();
-      if (!content) continue;
+      if (!content) continue; // 空の content はスキップ（返却 ids の長さは tasks より短くなる場合あり）
       const description = t.description ?? null;
       const priority = Math.min(4, Math.max(1, t.priority ?? 1));
       const indent = t.indent ?? 1;

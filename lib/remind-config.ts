@@ -35,9 +35,13 @@ export function getRemindSuggestion(content: string): RemindSuggestion | null {
 
 /**
  * 指定日付に days を加算して YYYY-MM-DD を返す。
+ * 無効な日付の場合は今日を基準にする。
  */
 export function addDaysToDate(dateStr: string, days: number): string {
-  const d = new Date(dateStr);
+  const d = dateStr ? new Date(dateStr) : new Date();
+  if (Number.isNaN(d.getTime())) {
+    d.setTime(Date.now());
+  }
   d.setDate(d.getDate() + days);
   return d.toISOString().slice(0, 10);
 }

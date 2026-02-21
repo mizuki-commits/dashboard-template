@@ -18,13 +18,19 @@ export interface TodoistCsvRow {
   author?: string;
   responsible?: string;
   date?: string; // YYYY-MM-DD
+  /** ラベル（複数はカンマ区切り。Todoist の LABELS 列に出力） */
+  labels?: string;
 }
 
 /**
  * タスク一覧を Todoist インポート用 CSV 文字列に変換する。
+ * labels が1件でも含まれる行があれば LABELS 列を出力する。
  */
 export function toTodoistCsv(rows: TodoistCsvRow[]): string {
-  const header = "TYPE,CONTENT,DESCRIPTION,PRIORITY,INDENT,AUTHOR,RESPONSIBLE,DATE";
+  const hasLabels = rows.some((r) => r.labels != null && r.labels !== "");
+  const header = hasLabels
+    ? "TYPE,CONTENT,DESCRIPTION,PRIORITY,INDENT,AUTHOR,RESPONSIBLE,DATE,LABELS"
+    : "TYPE,CONTENT,DESCRIPTION,PRIORITY,INDENT,AUTHOR,RESPONSIBLE,DATE";
   const lines = rows.map((row) => {
     const type = "task";
     const content = escapeCsvField(row.content || "");
@@ -34,7 +40,10 @@ export function toTodoistCsv(rows: TodoistCsvRow[]): string {
     const author = escapeCsvField(row.author || "");
     const responsible = escapeCsvField(row.responsible || "");
     const date = row.date || "";
-    return [type, content, description, priority, indent, author, responsible, date].join(",");
+    const labels = escapeCsvField(row.labels ?? "");
+    return hasLabels
+      ? [type, content, description, priority, indent, author, responsible, date, labels].join(",")
+      : [type, content, description, priority, indent, author, responsible, date].join(",");
   });
   return [header, ...lines].join("\n");
 }
