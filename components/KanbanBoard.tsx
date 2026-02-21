@@ -92,22 +92,30 @@ export function KanbanBoard({ entities = [] }: KanbanBoardProps) {
 
   /** タスクボードのステータス → Todoist ラベル（CONTENT に @ラベル名 で付与する） */
   const COLUMN_TO_LABEL: Record<KanbanTask["column"], string> = {
-    todo: "準備中",
+    todo: "準備",
     in_progress: "進行中",
     done: "完了",
+  };
+
+  /** 担当者（タスクボード） → Todoist 用担当者名（CSV の RESPONSIBLE に出力） */
+  const ASSIGNEE_TO_TODOIST_NAME: Record<KanbanAssignee, string> = {
+    MIZUKI: "Hidenobu M.",
+    NISHIKATA: "toshihiro nishikata",
   };
 
   const handleExportTodoistCsv = () => {
     const rows = tasks.map((t) => {
       const label = COLUMN_TO_LABEL[t.column];
       const contentWithLabel = label ? `${t.title} @${label}` : t.title;
+      const responsible =
+        t.assignee ? ASSIGNEE_TO_TODOIST_NAME[t.assignee] : "";
       return {
         content: contentWithLabel,
         description: t.description || (t.linkedEntity ? `${t.linkedEntity.name}` : undefined),
         priority: 1,
         indent: 1,
         date: t.deadline ? t.deadline.slice(0, 10) : undefined,
-        responsible: t.assignee || "",
+        responsible,
       };
     });
     const csv = toTodoistCsv(rows);
