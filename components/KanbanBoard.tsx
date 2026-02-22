@@ -111,14 +111,16 @@ export function KanbanBoard({ entities = [] }: KanbanBoardProps) {
 
   const getResponsibleForCsv = (assignee: KanbanAssignee | undefined): string => {
     if (!assignee) return "";
-    const name = ASSIGNEE_DISPLAY_NAME[assignee];
+    const name = ASSIGNEE_DISPLAY_NAME[assignee].trim();
     if (typeof window === "undefined") return name;
     const storageKey =
       assignee === "MIZUKI" ? "todoist_user_id_mizuki" : "todoist_user_id_nishikata";
-    const id =
-      localStorage.getItem(storageKey)?.trim() || DEFAULT_TODOIST_USER_ID[assignee];
+    const id = (
+      localStorage.getItem(storageKey)?.trim() || DEFAULT_TODOIST_USER_ID[assignee]
+    ).trim();
     const format = localStorage.getItem("todoist_responsible_format");
-    return format === "id_only" ? id : `${name} (${id})`;
+    if (format === "id_only") return id;
+    return `${name} (${id})`;
   };
 
   const handleExportTodoistCsv = () => {
