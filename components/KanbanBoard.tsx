@@ -128,9 +128,17 @@ export function KanbanBoard({ entities = [] }: KanbanBoardProps) {
       const label = COLUMN_TO_LABEL[t.column];
       const contentWithLabel = label ? `${t.title} @${label}` : t.title;
       const responsible = getResponsibleForCsv(t.assignee);
+      const baseDesc = t.description || (t.linkedEntity ? `${t.linkedEntity.name}` : "");
+      const assigneeLabel =
+        t.assignee
+          ? `${ASSIGNEE_DISPLAY_NAME[t.assignee]} (User ID: ${DEFAULT_TODOIST_USER_ID[t.assignee]})`
+          : "";
+      const description = [baseDesc, assigneeLabel ? `担当: ${assigneeLabel}` : ""]
+        .filter(Boolean)
+        .join(" / ") || undefined;
       return {
         content: contentWithLabel,
-        description: t.description || (t.linkedEntity ? `${t.linkedEntity.name}` : undefined),
+        description,
         priority: 1,
         indent: 1,
         date: t.deadline ? t.deadline.slice(0, 10) : undefined,
