@@ -103,14 +103,20 @@ export function KanbanBoard({ entities = [] }: KanbanBoardProps) {
     NISHIKATA: "nishikata",
   };
 
+  /** Todoist User ID のデフォルト（設定で未入力でも CSV に連携する） */
+  const DEFAULT_TODOIST_USER_ID: Record<KanbanAssignee, string> = {
+    MIZUKI: "87654321",
+    NISHIKATA: "12345678",
+  };
+
   const getResponsibleForCsv = (assignee: KanbanAssignee | undefined): string => {
     if (!assignee) return "";
     const name = ASSIGNEE_DISPLAY_NAME[assignee];
     if (typeof window === "undefined") return name;
     const storageKey =
       assignee === "MIZUKI" ? "todoist_user_id_mizuki" : "todoist_user_id_nishikata";
-    const id = localStorage.getItem(storageKey)?.trim();
-    if (!id) return name;
+    const id =
+      localStorage.getItem(storageKey)?.trim() || DEFAULT_TODOIST_USER_ID[assignee];
     const format = localStorage.getItem("todoist_responsible_format");
     return format === "id_only" ? id : `${name} (${id})`;
   };
