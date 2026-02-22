@@ -110,7 +110,9 @@ export function KanbanBoard({ entities = [] }: KanbanBoardProps) {
     const storageKey =
       assignee === "MIZUKI" ? "todoist_user_id_mizuki" : "todoist_user_id_nishikata";
     const id = localStorage.getItem(storageKey)?.trim();
-    return id ? `${name} (${id})` : name;
+    if (!id) return name;
+    const format = localStorage.getItem("todoist_responsible_format");
+    return format === "id_only" ? id : `${name} (${id})`;
   };
 
   const handleExportTodoistCsv = () => {

@@ -34,6 +34,8 @@ export default function SettingsPage() {
   // CSV書き出し時の担当者 Todoist User ID
   const [userIdMizuki, setUserIdMizuki] = useState("");
   const [userIdNishikata, setUserIdNishikata] = useState("");
+  // RESPONSIBLE 列の形式: "name_id" = 名前 (ID), "id_only" = IDのみ
+  const [responsibleFormat, setResponsibleFormat] = useState<"name_id" | "id_only">("name_id");
 
   const fetchProjects = useCallback(async () => {
     setError(null);
@@ -69,6 +71,8 @@ export default function SettingsPage() {
     if (storedToken) setUserToken(storedToken);
     setUserIdMizuki(localStorage.getItem("todoist_user_id_mizuki") || "");
     setUserIdNishikata(localStorage.getItem("todoist_user_id_nishikata") || "");
+    const fmt = localStorage.getItem("todoist_responsible_format");
+    setResponsibleFormat(fmt === "id_only" ? "id_only" : "name_id");
   }, []);
 
   const handleSync = async () => {
@@ -304,8 +308,42 @@ export default function SettingsPage() {
                 />
               </div>
             </div>
+            <div className="mt-3">
+              <span className="block text-xs font-medium text-muted-foreground mb-1">RESPONSIBLE 列の形式</span>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="responsible_format"
+                    checked={responsibleFormat === "name_id"}
+                    onChange={() => {
+                      setResponsibleFormat("name_id");
+                      localStorage.setItem("todoist_responsible_format", "name_id");
+                    }}
+                    className="rounded-full border-input"
+                  />
+                  <span className="text-sm">名前 (User ID)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="responsible_format"
+                    checked={responsibleFormat === "id_only"}
+                    onChange={() => {
+                      setResponsibleFormat("id_only");
+                      localStorage.setItem("todoist_responsible_format", "id_only");
+                    }}
+                    className="rounded-full border-input"
+                  />
+                  <span className="text-sm">User ID のみ</span>
+                </label>
+              </div>
+            </div>
             <p className="text-xs text-muted-foreground mt-2">
               User IDの調べ方: TodoistでプロジェクトをエクスポートしたCSVのAUTHOR/RESPONSIBLE列に「名前 (数字)」形式で記載されています。
+            </p>
+            <p className="text-xs text-amber-600 dark:text-amber-500 mt-2">
+              重要: インポート先のTodoistプロジェクトを、担当者（Hidenobu / nishikata）と共有しておいてください。共有されていないと担当が付きません。
             </p>
           </section>
 
