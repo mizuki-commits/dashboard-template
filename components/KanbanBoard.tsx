@@ -97,10 +97,10 @@ export function KanbanBoard({ entities = [] }: KanbanBoardProps) {
     done: "完了",
   };
 
-  /** 担当者（タスクボード） → Todoist 用表示名（RESPONSIBLE は「表示名 (user_id)」形式でないと担当が付かない） */
+  /** 担当者（タスクボード） → Todoist の表示名（RESPONSIBLE は「名前 (user_id)」形式で Todoist と一致させる） */
   const ASSIGNEE_DISPLAY_NAME: Record<KanbanAssignee, string> = {
-    MIZUKI: "Hidenobu M.",
-    NISHIKATA: "toshihiro nishikata",
+    MIZUKI: "Hidenobu",
+    NISHIKATA: "nishikata",
   };
 
   const getResponsibleForCsv = (assignee: KanbanAssignee | undefined): string => {

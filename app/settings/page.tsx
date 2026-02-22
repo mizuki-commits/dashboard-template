@@ -265,14 +265,14 @@ export default function SettingsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label htmlFor="todoist-user-id-mizuki" className="block text-xs font-medium text-muted-foreground mb-1">
-                  水城（Hidenobu M.）の User ID
+                  水城（Hidenobu）の User ID
                 </label>
                 <input
                   id="todoist-user-id-mizuki"
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"
-                  placeholder="例: 12345678"
+                  placeholder="例: 87654321"
                   value={userIdMizuki}
                   onChange={(e) => {
                     const v = e.target.value.replace(/\D/g, "");
@@ -285,14 +285,14 @@ export default function SettingsPage() {
               </div>
               <div>
                 <label htmlFor="todoist-user-id-nishikata" className="block text-xs font-medium text-muted-foreground mb-1">
-                  西方（toshihiro nishikata）の User ID
+                  西方（nishikata）の User ID
                 </label>
                 <input
                   id="todoist-user-id-nishikata"
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"
-                  placeholder="例: 87654321"
+                  placeholder="例: 12345678"
                   value={userIdNishikata}
                   onChange={(e) => {
                     const v = e.target.value.replace(/\D/g, "");
