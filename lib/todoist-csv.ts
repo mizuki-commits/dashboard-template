@@ -10,10 +10,10 @@ function escapeCsvField(value: string): string {
   return value;
 }
 
-/** AUTHOR / RESPONSIBLE は括弧を含むため常にクォートし、Todoist が確実に1セルとして解釈するようにする */
-function quoteCsvField(value: string): string {
+/** AUTHOR / RESPONSIBLE はカンマが含まれない限りクォートしない（Todoist 公式例 "Evan (14781400)" に合わせる） */
+function escapeCsvFieldOptionalQuote(value: string): string {
   if (!value) return "";
-  return `"${String(value).replace(/"/g, '""')}"`;
+  return escapeCsvField(value);
 }
 
 export interface TodoistCsvRow {
@@ -43,8 +43,8 @@ export function toTodoistCsv(rows: TodoistCsvRow[]): string {
     const description = escapeCsvField(row.description || "");
     const priority = Math.min(4, Math.max(1, row.priority ?? 1));
     const indent = row.indent ?? 1;
-    const author = quoteCsvField(row.author || "");
-    const responsible = quoteCsvField(row.responsible || "");
+    const author = escapeCsvFieldOptionalQuote(row.author || "");
+    const responsible = escapeCsvFieldOptionalQuote(row.responsible || "");
     const date = row.date || "";
     const dateLang = "";
     const labels = escapeCsvField(row.labels ?? "");

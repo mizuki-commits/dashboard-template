@@ -128,6 +128,7 @@ export function KanbanBoard({ entities = [] }: KanbanBoardProps) {
       const label = COLUMN_TO_LABEL[t.column];
       const contentWithLabel = label ? `${t.title} @${label}` : t.title;
       const responsible = getResponsibleForCsv(t.assignee);
+      const author = responsible;
       const baseDesc = t.description || (t.linkedEntity ? `${t.linkedEntity.name}` : "");
       const assigneeLabel =
         t.assignee
@@ -142,6 +143,7 @@ export function KanbanBoard({ entities = [] }: KanbanBoardProps) {
         priority: 1,
         indent: 1,
         date: t.deadline ? t.deadline.slice(0, 10) : undefined,
+        author,
         responsible,
       };
     });
